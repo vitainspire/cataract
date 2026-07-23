@@ -60,8 +60,9 @@ async function refreshAccuracy() {
     try {
         const response = await fetch(`${API_BASE}/stats`);
         const data = await response.json();
+        const model3Accuracy = data.per_model_accuracy ? data.per_model_accuracy.model3 : null;
         accuracyTotal.textContent = data.total_labeled;
-        accuracyPercent.textContent = data.ensemble_accuracy !== null ? `${data.ensemble_accuracy}%` : '—';
+        accuracyPercent.textContent = model3Accuracy !== null && model3Accuracy !== undefined ? `${model3Accuracy}%` : '—';
     } catch (err) {
         console.error('Failed to load accuracy stats:', err);
     }
