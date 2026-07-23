@@ -4,7 +4,7 @@ torch==2.10.0
 torchvision==0.25.0
 timm==1.0.28
 opencv-python-headless==4.10.0.84
-python-dotenv==1.0.0
+python-dotenv==1.2.2
 python-multipart==0.0.21
 pydantic==2.12.3
 psycopg2-binary==2.9.12
