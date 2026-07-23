@@ -18,6 +18,7 @@ import requests
 import psycopg2
 import psycopg2.extras
 from datetime import datetime, timezone
+from html import escape as html_escape
 
 # share_token is always a uuid4().hex (32 lowercase hex chars). Reject anything
 # else up front so no unvalidated request input ever reaches the HTML/JS we
@@ -424,6 +425,7 @@ async def review(token: str):
     if row is None:
         raise HTTPException(status_code=404, detail="Not found")
 
+    safe_token = html_escape(token)
     date = row["created_at"].strftime("%Y-%m-%d %H:%M:%S")
     if row["doctor_label"]:
         feedback_html = f'<div class="current-label">Already labeled: <strong>{row["doctor_label"]}</strong></div>'
@@ -457,7 +459,7 @@ async def review(token: str):
 <body>
     <div class="panel">
         <h1>Patient Eye Image Review</h1>
-        <img src="/review/{token}/image" alt="Eye image">
+        <img src="/review/{safe_token}/image" alt="Eye image">
         <div class="row"><span>Model 1</span><strong>{row['model1_diag']} ({row['model1_cataract']}% cataract)</strong></div>
         <div class="row"><span>Model 2</span><strong>{row['model2_diag']} ({row['model2_cataract']}% cataract)</strong></div>
         <div class="row"><span>Model 3</span><strong>{row['model3_diag']} ({row['model3_cataract']}% cataract)</strong></div>
@@ -469,7 +471,7 @@ async def review(token: str):
             document.getElementById('btn-cataract').disabled = true;
             document.getElementById('btn-normal').disabled = true;
             try {{
-                const resp = await fetch('/review/{token}/feedback', {{
+                const resp = await fetch('/review/{safe_token}/feedback', {{
                     method: 'POST',
                     headers: {{'Content-Type': 'application/json'}},
                     body: JSON.stringify({{doctor_label: label}})
