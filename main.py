@@ -6,7 +6,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import timm
 from PIL import Image
@@ -100,13 +99,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Mount static folder
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-@app.get("/")
-async def read_index():
-    return FileResponse("static/index.html")
 
 # ---------------------------------------------------------
 # MODEL ARCHITECTURE (Must match perfectly)
@@ -294,6 +286,10 @@ async def get_stats():
             "model3": accuracy("model3_diag"),
         }
     }
+
+# Serve the frontend at the root, matching how Vercel serves the `static/`
+# folder as its own root directory (same file paths work in both places).
+app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 if __name__ == "__main__":
     import uvicorn
