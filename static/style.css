@@ -206,6 +206,31 @@ header p {
     font-weight: 600;
 }
 
+/* Share Link */
+.share-link-section {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--card-border);
+    text-align: center;
+}
+
+.share-link-row {
+    display: flex;
+    gap: 0.5rem;
+}
+
+#share-link-input {
+    flex: 1;
+    min-width: 0;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: var(--text-main);
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.9rem;
+}
+
 /* Drop Zone */
 .drop-zone {
     width: 100%;

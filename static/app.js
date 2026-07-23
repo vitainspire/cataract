@@ -22,10 +22,27 @@ const feedbackStatus = document.getElementById('feedback-status');
 const accuracyTotal = document.getElementById('accuracy-total');
 const accuracyPercent = document.getElementById('accuracy-percent');
 
+// Share Link Elements
+const shareLinkSection = document.getElementById('share-link-section');
+const shareLinkInput = document.getElementById('share-link-input');
+const copyLinkBtn = document.getElementById('copy-link-btn');
+const copyStatus = document.getElementById('copy-status');
+
 let currentPredictionId = null;
 
 feedbackCataractBtn.addEventListener('click', () => submitFeedback('Cataract'));
 feedbackNormalBtn.addEventListener('click', () => submitFeedback('Normal'));
+
+copyLinkBtn.addEventListener('click', async () => {
+    try {
+        await navigator.clipboard.writeText(shareLinkInput.value);
+        copyStatus.textContent = "Link copied to clipboard.";
+    } catch (err) {
+        shareLinkInput.select();
+        copyStatus.textContent = "Press Ctrl+C to copy (clipboard access blocked).";
+    }
+    copyStatus.classList.remove('hidden');
+});
 
 async function submitFeedback(label) {
     if (!currentPredictionId) return;
@@ -220,6 +237,8 @@ async function processImage(file) {
     feedbackNormalBtn.disabled = false;
     feedbackCataractBtn.classList.remove('selected');
     feedbackNormalBtn.classList.remove('selected');
+    shareLinkSection.classList.add('hidden');
+    copyStatus.classList.add('hidden');
 
     const formData = new FormData();
     formData.append('file', file);
@@ -263,6 +282,12 @@ async function processImage(file) {
                 if (data.done) {
                     currentPredictionId = data.id;
                     feedbackSection.classList.remove('hidden');
+
+                    if (data.share_token) {
+                        const base = API_BASE || window.location.origin;
+                        shareLinkInput.value = `${base}/review/${data.share_token}`;
+                        shareLinkSection.classList.remove('hidden');
+                    }
                     continue;
                 }
 

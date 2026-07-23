@@ -107,6 +107,16 @@ def init_db():
             object_path = upload_image_to_storage(bytes(image_data))
             cur.execute("UPDATE predictions SET image_path = %s WHERE id = %s", (object_path, row_id))
         cur.execute("ALTER TABLE predictions DROP COLUMN image_data")
+
+    # share_token: a random, unguessable ID for the doctor-review link, distinct
+    # from the sequential `id` (which must never appear in a shareable URL, since
+    # sequential IDs could be enumerated to browse other patients' images).
+    cur.execute("ALTER TABLE predictions ADD COLUMN IF NOT EXISTS share_token TEXT")
+    cur.execute("SELECT id FROM predictions WHERE share_token IS NULL")
+    for (row_id,) in cur.fetchall():
+        cur.execute("UPDATE predictions SET share_token = %s WHERE id = %s", (uuid.uuid4().hex, row_id))
+    cur.execute("CREATE UNIQUE INDEX IF NOT EXISTS predictions_share_token_idx ON predictions (share_token)")
+
     conn.commit()
     cur.close()
     conn.close()
@@ -250,21 +260,22 @@ async def predict_cataract(file: UploadFile = File(...)):
             pil_img.save(img_buffer, format="JPEG")
             image_data = img_buffer.getvalue()
             object_path = upload_image_to_storage(image_data)
+            share_token = uuid.uuid4().hex
 
             m_results = [format_probs(p) for p in probs]
             conn = get_db()
             cur = conn.cursor()
             cur.execute(
                 """INSERT INTO predictions (
-                    created_at, image_path,
+                    created_at, image_path, share_token,
                     model1_diag, model1_cataract, model1_normal, model1_noteye,
                     model2_diag, model2_cataract, model2_normal, model2_noteye,
                     model3_diag, model3_cataract, model3_normal, model3_noteye,
                     ensemble_diag
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id""",
                 (
-                    datetime.now(timezone.utc), object_path,
+                    datetime.now(timezone.utc), object_path, share_token,
                     m_results[0]["Diagnosis"], m_results[0]["Cataract"], m_results[0]["Normal"], m_results[0]["Not Eye"],
                     m_results[1]["Diagnosis"], m_results[1]["Cataract"], m_results[1]["Normal"], m_results[1]["Not Eye"],
                     m_results[2]["Diagnosis"], m_results[2]["Cataract"], m_results[2]["Normal"], m_results[2]["Not Eye"],
@@ -276,7 +287,12 @@ async def predict_cataract(file: UploadFile = File(...)):
             cur.close()
             conn.close()
 
-            yield json.dumps({"done": True, "id": prediction_id, "ensemble_diagnosis": ensemble_diag}) + "\n"
+            yield json.dumps({
+                "done": True,
+                "id": prediction_id,
+                "ensemble_diagnosis": ensemble_diag,
+                "share_token": share_token,
+            }) + "\n"
 
         except Exception:
             import traceback
@@ -401,6 +417,128 @@ async def gallery():
     <div class="grid">{"".join(cards)}</div>
 </body></html>"""
     return HTMLResponse(html)
+
+
+class TokenFeedbackRequest(BaseModel):
+    doctor_label: str
+
+
+@app.get("/review/{token}", response_class=HTMLResponse)
+async def review(token: str):
+    conn = get_db()
+    cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cur.execute(
+        "SELECT created_at, model1_diag, model1_cataract, model2_diag, model2_cataract, "
+        "model3_diag, model3_cataract, ensemble_diag, doctor_label "
+        "FROM predictions WHERE share_token = %s",
+        (token,)
+    )
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    date = row["created_at"].strftime("%Y-%m-%d %H:%M:%S")
+    if row["doctor_label"]:
+        feedback_html = f'<div class="current-label">Already labeled: <strong>{row["doctor_label"]}</strong></div>'
+    else:
+        feedback_html = """
+        <div class="feedback-buttons">
+            <button id="btn-cataract" onclick="submitLabel('Cataract')">Cataract</button>
+            <button id="btn-normal" onclick="submitLabel('Normal')">Normal</button>
+        </div>
+        <p id="status"></p>
+        """
+
+    html = f"""<!DOCTYPE html>
+<html><head><title>Patient Eye Review</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+    body {{ font-family: sans-serif; background:#0f111a; color:#f8fafc; padding:2rem; margin:0; display:flex; justify-content:center; }}
+    .panel {{ max-width: 480px; width:100%; }}
+    img {{ width:100%; border-radius:16px; margin-bottom:1.5rem; }}
+    h1 {{ font-size:1.4rem; margin-bottom:1rem; }}
+    .row {{ display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.08); }}
+    .row span {{ color:#94a3b8; }}
+    .feedback-buttons {{ display:flex; gap:0.75rem; margin-top:1.5rem; }}
+    button {{ flex:1; padding:12px; border:none; border-radius:10px; font-size:1rem; font-weight:600; cursor:pointer; }}
+    #btn-cataract {{ background:#ef4444; color:white; }}
+    #btn-normal {{ background:#10b981; color:white; }}
+    button:disabled {{ opacity:0.5; cursor:not-allowed; }}
+    .current-label {{ margin-top:1.5rem; padding:1rem; background:rgba(16,185,129,0.15); border-radius:10px; text-align:center; font-weight:600; }}
+    #status {{ margin-top:1rem; text-align:center; color:#10b981; font-weight:600; }}
+</style></head>
+<body>
+    <div class="panel">
+        <h1>Patient Eye Image Review</h1>
+        <img src="/review/{token}/image" alt="Eye image">
+        <div class="row"><span>Model 1</span><strong>{row['model1_diag']} ({row['model1_cataract']}% cataract)</strong></div>
+        <div class="row"><span>Model 2</span><strong>{row['model2_diag']} ({row['model2_cataract']}% cataract)</strong></div>
+        <div class="row"><span>Model 3</span><strong>{row['model3_diag']} ({row['model3_cataract']}% cataract)</strong></div>
+        <div class="row"><span>AI Ensemble Result</span><strong>{row['ensemble_diag']}</strong></div>
+        <div class="row"><span>Date</span><strong>{date}</strong></div>
+        {feedback_html}
+    </div>
+    <script>
+        async function submitLabel(label) {{
+            document.getElementById('btn-cataract').disabled = true;
+            document.getElementById('btn-normal').disabled = true;
+            try {{
+                const resp = await fetch('/review/{token}/feedback', {{
+                    method: 'POST',
+                    headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{doctor_label: label}})
+                }});
+                if (!resp.ok) throw new Error('failed');
+                document.getElementById('status').textContent = 'Saved: ' + label;
+            }} catch (e) {{
+                document.getElementById('status').textContent = 'Failed to save, please try again.';
+                document.getElementById('btn-cataract').disabled = false;
+                document.getElementById('btn-normal').disabled = false;
+            }}
+        }}
+    </script>
+</body></html>"""
+    return HTMLResponse(html)
+
+
+@app.get("/review/{token}/image")
+async def review_image(token: str):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT image_path FROM predictions WHERE share_token = %s", (token,))
+    row = cur.fetchone()
+    cur.close()
+    conn.close()
+    if row is None or row[0] is None:
+        raise HTTPException(status_code=404, detail="Image not found")
+    image_data = download_image_from_storage(row[0])
+    return Response(content=image_data, media_type="image/jpeg")
+
+
+@app.post("/review/{token}/feedback")
+async def review_feedback(token: str, body: TokenFeedbackRequest):
+    if body.doctor_label not in ("Cataract", "Normal"):
+        raise HTTPException(status_code=400, detail="doctor_label must be 'Cataract' or 'Normal'")
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT id FROM predictions WHERE share_token = %s", (token,))
+    row = cur.fetchone()
+    if row is None:
+        cur.close()
+        conn.close()
+        raise HTTPException(status_code=404, detail="Prediction not found")
+
+    cur.execute(
+        "UPDATE predictions SET doctor_label = %s, doctor_labeled_at = %s WHERE id = %s",
+        (body.doctor_label, datetime.now(timezone.utc), row[0])
+    )
+    conn.commit()
+    cur.close()
+    conn.close()
+    return {"success": True}
 
 
 @app.get("/images/{prediction_id}")
