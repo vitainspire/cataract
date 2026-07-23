@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AI-Powered Cataract Detection System using ConvNeXt Ensembles.">
+    <title>Cataract AI Diagnostician</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="bg-shape bg-shape-1"></div>
+    <div class="bg-shape bg-shape-2"></div>
+
+    <main class="container">
+        <header>
+            <h1>Cataract <span class="gradient-text">AI Diagnostic</span></h1>
+            <p>Upload a fundus image. Our 3-model ConvNeXt ensemble will condition and analyze it instantly.</p>
+        </header>
+
+        <div id="accuracy-panel" class="accuracy-panel">
+            <div class="accuracy-item">
+                <span class="accuracy-value" id="accuracy-total">-</span>
+                <span class="accuracy-label">Doctor-Labeled Samples</span>
+            </div>
+            <div class="accuracy-item">
+                <span class="accuracy-value" id="accuracy-percent">-</span>
+                <span class="accuracy-label">Live Ensemble Accuracy</span>
+            </div>
+        </div>
+
+        <section class="upload-section">
+            <div id="drop-zone" class="drop-zone">
+                <div class="drop-zone-content">
+                    <i class="fa-solid fa-eye drop-icon"></i>
+                    <h3>Drag & Drop Fundus Image Here</h3>
+                    <p>or click to browse from your device</p>
+                    <input type="file" id="file-input" accept="image/*" hidden>
+                    <div class="action-buttons">
+                        <button class="btn-primary" onclick="document.getElementById('file-input').click()">Browse Files</button>
+                        <button class="btn-secondary" id="camera-btn" type="button"><i class="fa-solid fa-camera"></i> Use Camera</button>
+                    </div>
+                </div>
+                <img id="image-preview" class="image-preview hidden" alt="Image Preview">
+            </div>
+        </section>
+
+        <div id="camera-modal" class="camera-modal hidden">
+            <div class="camera-panel">
+                <video id="camera-video" autoplay playsinline muted></video>
+                <canvas id="camera-canvas" class="hidden"></canvas>
+                <div class="camera-controls">
+                    <button id="capture-btn" class="btn-primary" type="button"><i class="fa-solid fa-camera"></i> Capture Photo</button>
+                    <button id="close-camera-btn" class="btn-secondary" type="button">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <section id="results-section" class="results-section hidden">
+            <div class="glass-panel">
+                <h2>Analysis Results</h2>
+                
+                <div id="loading-spinner" class="loading-container hidden">
+                    <div class="spinner"></div>
+                    <p>Ensemble AI is analyzing structural cloudiness...</p>
+                </div>
+
+                <div id="diagnosis-content" class="diagnosis-content hidden">
+                    <!-- Individual Experiment Results Only -->
+                    <h2 style="text-align: center; margin-bottom: 1.5rem; font-size: 1.3rem;">Individual Model Predictions</h2>
+                    <div style="display: flex; gap: 1rem; justify-content: space-between; text-align: center;">
+                        <div class="model-card" id="card-exp1">
+                            <div class="label">Model 1 (Exp 1)</div>
+                            <div class="val" id="val-exp1-diag" style="font-weight: 800; font-size: 1.5rem; margin: 1rem 0;">-</div>
+                            <div style="font-size: 0.9rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 5px;">
+                                <span>Cataract: <strong id="val-exp1-c" style="color: var(--text-main)">0</strong>%</span>
+                                <span>Normal: <strong id="val-exp1-n" style="color: var(--text-main)">0</strong>%</span>
+                                <span>Not Eye: <strong id="val-exp1-noteye" style="color: var(--text-main)">0</strong>%</span>
+                            </div>
+                        </div>
+                        <div class="model-card" id="card-exp2">
+                            <div class="label">Model 2 (Exp 2)</div>
+                            <div class="val" id="val-exp2-diag" style="font-weight: 800; font-size: 1.5rem; margin: 1rem 0;">-</div>
+                            <div style="font-size: 0.9rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 5px;">
+                                <span>Cataract: <strong id="val-exp2-c" style="color: var(--text-main)">0</strong>%</span>
+                                <span>Normal: <strong id="val-exp2-n" style="color: var(--text-main)">0</strong>%</span>
+                                <span>Not Eye: <strong id="val-exp2-noteye" style="color: var(--text-main)">0</strong>%</span>
+                            </div>
+                        </div>
+                        <div class="model-card" id="card-exp3">
+                            <div class="label">Model 3 (Exp 3)</div>
+                            <div class="val" id="val-exp3-diag" style="font-weight: 800; font-size: 1.5rem; margin: 1rem 0;">-</div>
+                            <div style="font-size: 0.9rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 5px;">
+                                <span>Cataract: <strong id="val-exp3-c" style="color: var(--text-main)">0</strong>%</span>
+                                <span>Normal: <strong id="val-exp3-n" style="color: var(--text-main)">0</strong>%</span>
+                                <span>Not Eye: <strong id="val-exp3-noteye" style="color: var(--text-main)">0</strong>%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="error-message" class="error-message hidden">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <p id="error-text">An error occurred.</p>
+                </div>
+
+                <div id="feedback-section" class="feedback-section hidden">
+                    <p class="feedback-prompt">Doctor's diagnosis (helps us collect data & fine-tune the model):</p>
+                    <div class="feedback-buttons">
+                        <button id="feedback-cataract" class="btn-feedback btn-feedback-cataract" type="button">
+                            <i class="fa-solid fa-eye-low-vision"></i> Cataract
+                        </button>
+                        <button id="feedback-normal" class="btn-feedback btn-feedback-normal" type="button">
+                            <i class="fa-solid fa-eye"></i> Normal
+                        </button>
+                    </div>
+                    <p id="feedback-status" class="feedback-status hidden"></p>
+                </div>
+
+            </div>
+        </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
