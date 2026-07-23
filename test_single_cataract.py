@@ -72,7 +72,7 @@ def test_image(img_path):
     for ckpt in CHECKPOINT_FILES:
         if os.path.exists(ckpt):
             m = EyeDiseaseModel(NUM_CLASSES)
-            m.load_state_dict(torch.load(ckpt, map_location=device))
+            m.load_state_dict(torch.load(ckpt, map_location=device, weights_only=True))
             m.eval()
             models.append(m)
     

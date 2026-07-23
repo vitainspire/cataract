@@ -179,7 +179,7 @@ print("-> Loading Ensemble Models into memory...")
 for ckpt in CHECKPOINT_FILES:
     if os.path.exists(ckpt):
         m = EyeDiseaseModel(NUM_CLASSES)
-        m.load_state_dict(torch.load(ckpt, map_location=device))
+        m.load_state_dict(torch.load(ckpt, map_location=device, weights_only=True))
         m.to(device)
         m.eval()
         models.append(m)
@@ -278,10 +278,10 @@ async def predict_cataract(file: UploadFile = File(...)):
 
             yield json.dumps({"done": True, "id": prediction_id, "ensemble_diagnosis": ensemble_diag}) + "\n"
 
-        except Exception as e:
+        except Exception:
             import traceback
             traceback.print_exc()
-            yield json.dumps({"error": str(e)}) + "\n"
+            yield json.dumps({"error": "An internal error occurred while processing the image."}) + "\n"
 
     return StreamingResponse(generate(), media_type="application/x-ndjson")
 

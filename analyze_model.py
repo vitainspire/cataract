@@ -49,7 +49,7 @@ for i, ckpt in enumerate(CHECKPOINT_FILES):
     t0 = time.time()
     try:
         m = EyeDiseaseModel(NUM_CLASSES)
-        m.load_state_dict(torch.load(ckpt, map_location=device))
+        m.load_state_dict(torch.load(ckpt, map_location=device, weights_only=True))
         m.eval()
         models.append(m)
         t1 = time.time()
