@@ -12,11 +12,21 @@ import timm
 from PIL import Image
 from torchvision import transforms
 import io
+import re
 import uuid
 import requests
 import psycopg2
 import psycopg2.extras
 from datetime import datetime, timezone
+
+# share_token is always a uuid4().hex (32 lowercase hex chars). Reject anything
+# else up front so no unvalidated request input ever reaches the HTML/JS we
+# build for the /review pages.
+TOKEN_PATTERN = re.compile(r"^[0-9a-f]{32}$")
+
+
+def is_valid_token(token):
+    return bool(TOKEN_PATTERN.fullmatch(token))
 
 from dotenv import load_dotenv
 
@@ -397,6 +407,9 @@ class TokenFeedbackRequest(BaseModel):
 
 @app.get("/review/{token}", response_class=HTMLResponse)
 async def review(token: str):
+    if not is_valid_token(token):
+        raise HTTPException(status_code=404, detail="Not found")
+
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute(
@@ -476,6 +489,9 @@ async def review(token: str):
 
 @app.get("/review/{token}/image")
 async def review_image(token: str):
+    if not is_valid_token(token):
+        raise HTTPException(status_code=404, detail="Not found")
+
     conn = get_db()
     cur = conn.cursor()
     cur.execute("SELECT image_path FROM predictions WHERE share_token = %s", (token,))
@@ -490,6 +506,8 @@ async def review_image(token: str):
 
 @app.post("/review/{token}/feedback")
 async def review_feedback(token: str, body: TokenFeedbackRequest):
+    if not is_valid_token(token):
+        raise HTTPException(status_code=404, detail="Not found")
     if body.doctor_label not in ("Cataract", "Normal"):
         raise HTTPException(status_code=400, detail="doctor_label must be 'Cataract' or 'Normal'")
 
