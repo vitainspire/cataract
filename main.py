@@ -232,14 +232,30 @@ val_transform = transforms.Compose([
 # ---------------------------------------------------------
 # PREDICTION ENDPOINT
 # ---------------------------------------------------------
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 import json
+
+# Cap how many predictions can run at once. Beyond this, new requests get an
+# immediate "system busy" response instead of silently queuing and eventually
+# timing out.
+MAX_CONCURRENT_PREDICTIONS = 10
+active_predictions = 0
+
 
 @app.post("/predict")
 async def predict_cataract(file: UploadFile = File(...)):
+    global active_predictions
+
     if not models:
         return {"error": "No models loaded in the backend."}
 
+    if active_predictions >= MAX_CONCURRENT_PREDICTIONS:
+        return JSONResponse(
+            status_code=503,
+            content={"error": "The system is busy processing other images right now. Please try again in a moment."}
+        )
+
+    active_predictions += 1
     image_bytes = await file.read()
 
     async def generate():
@@ -317,6 +333,9 @@ async def predict_cataract(file: UploadFile = File(...)):
             import traceback
             traceback.print_exc()
             yield json.dumps({"error": "An internal error occurred while processing the image."}) + "\n"
+        finally:
+            global active_predictions
+            active_predictions -= 1
 
     return StreamingResponse(generate(), media_type="application/x-ndjson")
 
