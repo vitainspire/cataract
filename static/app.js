@@ -14,11 +14,6 @@ const diagnosisContent = document.getElementById('diagnosis-content');
 const errorMessage = document.getElementById('error-message');
 const errorText = document.getElementById('error-text');
 
-// Doctor Feedback Elements
-const feedbackSection = document.getElementById('feedback-section');
-const feedbackCataractBtn = document.getElementById('feedback-cataract');
-const feedbackNormalBtn = document.getElementById('feedback-normal');
-const feedbackStatus = document.getElementById('feedback-status');
 const accuracyTotal = document.getElementById('accuracy-total');
 const accuracyPercent = document.getElementById('accuracy-percent');
 
@@ -27,11 +22,6 @@ const shareLinkSection = document.getElementById('share-link-section');
 const shareLinkInput = document.getElementById('share-link-input');
 const copyLinkBtn = document.getElementById('copy-link-btn');
 const copyStatus = document.getElementById('copy-status');
-
-let currentPredictionId = null;
-
-feedbackCataractBtn.addEventListener('click', () => submitFeedback('Cataract'));
-feedbackNormalBtn.addEventListener('click', () => submitFeedback('Normal'));
 
 copyLinkBtn.addEventListener('click', async () => {
     try {
@@ -43,35 +33,6 @@ copyLinkBtn.addEventListener('click', async () => {
     }
     copyStatus.classList.remove('hidden');
 });
-
-async function submitFeedback(label) {
-    if (!currentPredictionId) return;
-
-    feedbackCataractBtn.disabled = true;
-    feedbackNormalBtn.disabled = true;
-
-    try {
-        const response = await fetch(`${API_BASE}/feedback`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: currentPredictionId, doctor_label: label })
-        });
-
-        if (!response.ok) throw new Error('Failed to save feedback');
-
-        (label === 'Cataract' ? feedbackCataractBtn : feedbackNormalBtn).classList.add('selected');
-        feedbackStatus.textContent = `Saved as "${label}" — thank you, this will help fine-tune the model.`;
-        feedbackStatus.classList.remove('hidden');
-
-        refreshAccuracy();
-    } catch (err) {
-        console.error(err);
-        feedbackStatus.textContent = "Failed to save your feedback. Please try again.";
-        feedbackStatus.classList.remove('hidden');
-        feedbackCataractBtn.disabled = false;
-        feedbackNormalBtn.disabled = false;
-    }
-}
 
 async function refreshAccuracy() {
     try {
@@ -230,13 +191,6 @@ async function processImage(file) {
     errorMessage.classList.add('hidden');
     loadingSpinner.classList.remove('hidden');
 
-    currentPredictionId = null;
-    feedbackSection.classList.add('hidden');
-    feedbackStatus.classList.add('hidden');
-    feedbackCataractBtn.disabled = false;
-    feedbackNormalBtn.disabled = false;
-    feedbackCataractBtn.classList.remove('selected');
-    feedbackNormalBtn.classList.remove('selected');
     shareLinkSection.classList.add('hidden');
     copyStatus.classList.add('hidden');
 
@@ -280,9 +234,6 @@ async function processImage(file) {
                 }
 
                 if (data.done) {
-                    currentPredictionId = data.id;
-                    feedbackSection.classList.remove('hidden');
-
                     if (data.share_token) {
                         const base = API_BASE || window.location.origin;
                         shareLinkInput.value = `${base}/review/${data.share_token}`;

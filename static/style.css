@@ -131,73 +131,10 @@ header p {
     letter-spacing: 0.5px;
 }
 
-/* Doctor Feedback */
-.feedback-section {
-    margin-top: 1.5rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--card-border);
-    text-align: center;
-}
-
 .feedback-prompt {
     color: var(--text-muted);
     font-size: 0.95rem;
     margin-bottom: 1rem;
-}
-
-.feedback-buttons {
-    display: flex;
-    gap: 0.75rem;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-.btn-feedback {
-    border: 1px solid var(--card-border);
-    background: rgba(255, 255, 255, 0.06);
-    color: var(--text-main);
-    padding: 10px 22px;
-    font-size: 1rem;
-    font-weight: 600;
-    border-radius: 12px;
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
-    font-family: 'Outfit', sans-serif;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.btn-feedback:hover:not(:disabled) {
-    transform: translateY(-2px);
-}
-
-.btn-feedback:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-}
-
-.btn-feedback-cataract:hover:not(:disabled) {
-    background: rgba(239, 68, 68, 0.15);
-    border-color: var(--color-cataract);
-    box-shadow: 0 8px 20px rgba(239, 68, 68, 0.25);
-}
-
-.btn-feedback-normal:hover:not(:disabled) {
-    background: rgba(16, 185, 129, 0.15);
-    border-color: var(--color-normal);
-    box-shadow: 0 8px 20px rgba(16, 185, 129, 0.25);
-}
-
-.btn-feedback.selected.btn-feedback-cataract {
-    background: rgba(239, 68, 68, 0.2);
-    border-color: var(--color-cataract);
-}
-
-.btn-feedback.selected.btn-feedback-normal {
-    background: rgba(16, 185, 129, 0.2);
-    border-color: var(--color-normal);
 }
 
 .feedback-status {

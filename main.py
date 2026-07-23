@@ -302,34 +302,6 @@ async def predict_cataract(file: UploadFile = File(...)):
     return StreamingResponse(generate(), media_type="application/x-ndjson")
 
 
-class FeedbackRequest(BaseModel):
-    id: int
-    doctor_label: str
-
-
-@app.post("/feedback")
-async def submit_feedback(body: FeedbackRequest):
-    if body.doctor_label not in ("Cataract", "Normal"):
-        raise HTTPException(status_code=400, detail="doctor_label must be 'Cataract' or 'Normal'")
-
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT id FROM predictions WHERE id = %s", (body.id,))
-    if cur.fetchone() is None:
-        cur.close()
-        conn.close()
-        raise HTTPException(status_code=404, detail="Prediction not found")
-
-    cur.execute(
-        "UPDATE predictions SET doctor_label = %s, doctor_labeled_at = %s WHERE id = %s",
-        (body.doctor_label, datetime.now(timezone.utc), body.id)
-    )
-    conn.commit()
-    cur.close()
-    conn.close()
-    return {"success": True}
-
-
 @app.get("/stats")
 async def get_stats():
     conn = get_db()
@@ -476,7 +448,6 @@ async def review(token: str):
         <div class="row"><span>Model 1</span><strong>{row['model1_diag']} ({row['model1_cataract']}% cataract)</strong></div>
         <div class="row"><span>Model 2</span><strong>{row['model2_diag']} ({row['model2_cataract']}% cataract)</strong></div>
         <div class="row"><span>Model 3</span><strong>{row['model3_diag']} ({row['model3_cataract']}% cataract)</strong></div>
-        <div class="row"><span>AI Ensemble Result</span><strong>{row['ensemble_diag']}</strong></div>
         <div class="row"><span>Date</span><strong>{date}</strong></div>
         {feedback_html}
     </div>
