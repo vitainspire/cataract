@@ -1,4 +1,5 @@
 import os
+import asyncio
 import cv2
 import numpy as np
 import torch
@@ -254,13 +255,20 @@ async def predict_cataract(file: UploadFile = File(...)):
                     "Diagnosis": CLASS_NAMES[int(np.argmax(p))]
                 }
 
-            probs = []
-            with torch.no_grad():
-                for i, m in enumerate(models, start=1):
+            def run_model(m):
+                with torch.no_grad():
                     out = m(tensor)
-                    p = F.softmax(out, dim=1).cpu().numpy()[0]
-                    probs.append(p)
-                    yield json.dumps({"model": i, "result": format_probs(p)}) + "\n"
+                    return F.softmax(out, dim=1).cpu().numpy()[0]
+
+            probs = []
+            for i, m in enumerate(models, start=1):
+                # Offload the blocking CPU inference to a worker thread so this
+                # request doesn't hold up the event loop (and other requests)
+                # while it runs — lets a second concurrent prediction actually
+                # use the second vCPU instead of queuing behind this one.
+                p = await asyncio.to_thread(run_model, m)
+                probs.append(p)
+                yield json.dumps({"model": i, "result": format_probs(p)}) + "\n"
 
             # Soft-vote ensemble across the loaded models
             ensemble_probs = np.mean(probs, axis=0)
