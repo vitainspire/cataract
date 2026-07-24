@@ -250,6 +250,11 @@ from fastapi.responses import JSONResponse
 MAX_CONCURRENT_PREDICTIONS = 10
 active_predictions = 0
 
+# Reject oversized uploads before they consume memory. Nginx has its own limit
+# in front of this (see deployment notes), but the app enforces its own cap
+# too so this holds even if Nginx's config ever drifts.
+MAX_UPLOAD_SIZE_BYTES = 15 * 1024 * 1024
+
 
 def format_probs(p):
     return {
@@ -308,6 +313,12 @@ async def predict_cataract(left_file: UploadFile = File(...), right_file: Upload
     try:
         left_bytes = await left_file.read()
         right_bytes = await right_file.read()
+
+        if len(left_bytes) > MAX_UPLOAD_SIZE_BYTES or len(right_bytes) > MAX_UPLOAD_SIZE_BYTES:
+            return JSONResponse(
+                status_code=413,
+                content={"error": "One of the images is too large. Please use a photo under 15MB."}
+            )
 
         left_result, right_result = await asyncio.gather(
             analyze_eye(left_bytes),

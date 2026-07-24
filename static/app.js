@@ -237,7 +237,19 @@ async function processImages(leftFile, rightFile) {
             body: formData
         });
 
-        const data = await response.json();
+        let data;
+        try {
+            data = await response.json();
+        } catch (parseErr) {
+            // Response wasn't JSON at all — e.g. a proxy/server error page
+            // (too-large upload, gateway timeout, etc.) rather than our API.
+            showError(
+                response.status === 413
+                    ? "One or both images are too large. Please use smaller photos."
+                    : `Server error (${response.status}). Please try again.`
+            );
+            return;
+        }
 
         if (!response.ok || data.error) {
             showError(data.error || "Failed to analyze the images.");
