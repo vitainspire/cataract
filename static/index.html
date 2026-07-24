@@ -70,19 +70,37 @@
         </section>
 
         <section class="upload-section">
-            <div id="drop-zone" class="drop-zone">
-                <div class="drop-zone-content">
-                    <i class="fa-solid fa-eye drop-icon"></i>
-                    <h3>Drag & Drop Fundus Image Here</h3>
-                    <p>or click to browse from your device</p>
-                    <input type="file" id="file-input" accept="image/*" hidden>
-                    <div class="action-buttons">
-                        <button class="btn-primary" onclick="document.getElementById('file-input').click()">Browse Files</button>
-                        <button class="btn-secondary" id="camera-btn" type="button"><i class="fa-solid fa-camera"></i> Use Camera</button>
+            <div class="dual-upload">
+                <div class="drop-zone" data-eye="left">
+                    <div class="drop-zone-content">
+                        <i class="fa-solid fa-eye drop-icon"></i>
+                        <h3>Left Eye</h3>
+                        <p>or click to browse from your device</p>
+                        <input type="file" class="file-input" accept="image/*" hidden>
+                        <div class="action-buttons">
+                            <button class="btn-primary btn-browse" type="button">Browse Files</button>
+                            <button class="btn-secondary btn-camera" type="button"><i class="fa-solid fa-camera"></i> Use Camera</button>
+                        </div>
                     </div>
+                    <img class="image-preview hidden" alt="Left Eye Preview">
                 </div>
-                <img id="image-preview" class="image-preview hidden" alt="Image Preview">
+                <div class="drop-zone" data-eye="right">
+                    <div class="drop-zone-content">
+                        <i class="fa-solid fa-eye drop-icon"></i>
+                        <h3>Right Eye</h3>
+                        <p>or click to browse from your device</p>
+                        <input type="file" class="file-input" accept="image/*" hidden>
+                        <div class="action-buttons">
+                            <button class="btn-primary btn-browse" type="button">Browse Files</button>
+                            <button class="btn-secondary btn-camera" type="button"><i class="fa-solid fa-camera"></i> Use Camera</button>
+                        </div>
+                    </div>
+                    <img class="image-preview hidden" alt="Right Eye Preview">
+                </div>
             </div>
+            <button id="analyze-btn" class="btn-primary analyze-btn" type="button" disabled>
+                Analyze Both Eyes
+            </button>
         </section>
 
         <div id="camera-modal" class="camera-modal hidden">
@@ -99,41 +117,75 @@
         <section id="results-section" class="results-section hidden">
             <div class="glass-panel">
                 <h2>Analysis Results</h2>
-                
+
                 <div id="loading-spinner" class="loading-container hidden">
                     <div class="spinner"></div>
-                    <p>Ensemble AI is analyzing structural cloudiness...</p>
+                    <p>Analyzing both eyes in parallel...</p>
                 </div>
 
                 <div id="diagnosis-content" class="diagnosis-content hidden">
-                    <!-- Individual Experiment Results Only -->
-                    <h2 style="text-align: center; margin-bottom: 1.5rem; font-size: 1.3rem;">Individual Model Predictions</h2>
-                    <div style="display: flex; gap: 1rem; justify-content: space-between; text-align: center;">
-                        <div class="model-card" id="card-exp1">
-                            <div class="label">Model 1 (Exp 1)</div>
-                            <div class="val" id="val-exp1-diag" style="font-weight: 800; font-size: 1.5rem; margin: 1rem 0;">-</div>
-                            <div style="font-size: 0.9rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 5px;">
-                                <span>Cataract: <strong id="val-exp1-c" style="color: var(--text-main)">0</strong>%</span>
-                                <span>Normal: <strong id="val-exp1-n" style="color: var(--text-main)">0</strong>%</span>
-                                <span>Not Eye: <strong id="val-exp1-noteye" style="color: var(--text-main)">0</strong>%</span>
+                    <div class="eye-results" data-eye="left">
+                        <h3 class="eye-results-title">Left Eye</h3>
+                        <div class="model-cards-row">
+                            <div class="model-card" data-model="1">
+                                <div class="label">Model 1 (Exp 1)</div>
+                                <div class="val" data-field="diag">-</div>
+                                <div class="model-card-metrics">
+                                    <span>Cataract: <strong data-field="cataract">0</strong>%</span>
+                                    <span>Normal: <strong data-field="normal">0</strong>%</span>
+                                    <span>Not Eye: <strong data-field="noteye">0</strong>%</span>
+                                </div>
+                            </div>
+                            <div class="model-card" data-model="2">
+                                <div class="label">Model 2 (Exp 2)</div>
+                                <div class="val" data-field="diag">-</div>
+                                <div class="model-card-metrics">
+                                    <span>Cataract: <strong data-field="cataract">0</strong>%</span>
+                                    <span>Normal: <strong data-field="normal">0</strong>%</span>
+                                    <span>Not Eye: <strong data-field="noteye">0</strong>%</span>
+                                </div>
+                            </div>
+                            <div class="model-card" data-model="3">
+                                <div class="label">Model 3 (Exp 3)</div>
+                                <div class="val" data-field="diag">-</div>
+                                <div class="model-card-metrics">
+                                    <span>Cataract: <strong data-field="cataract">0</strong>%</span>
+                                    <span>Normal: <strong data-field="normal">0</strong>%</span>
+                                    <span>Not Eye: <strong data-field="noteye">0</strong>%</span>
+                                </div>
                             </div>
                         </div>
-                        <div class="model-card" id="card-exp2">
-                            <div class="label">Model 2 (Exp 2)</div>
-                            <div class="val" id="val-exp2-diag" style="font-weight: 800; font-size: 1.5rem; margin: 1rem 0;">-</div>
-                            <div style="font-size: 0.9rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 5px;">
-                                <span>Cataract: <strong id="val-exp2-c" style="color: var(--text-main)">0</strong>%</span>
-                                <span>Normal: <strong id="val-exp2-n" style="color: var(--text-main)">0</strong>%</span>
-                                <span>Not Eye: <strong id="val-exp2-noteye" style="color: var(--text-main)">0</strong>%</span>
+                    </div>
+
+                    <div class="eye-results" data-eye="right">
+                        <h3 class="eye-results-title">Right Eye</h3>
+                        <div class="model-cards-row">
+                            <div class="model-card" data-model="1">
+                                <div class="label">Model 1 (Exp 1)</div>
+                                <div class="val" data-field="diag">-</div>
+                                <div class="model-card-metrics">
+                                    <span>Cataract: <strong data-field="cataract">0</strong>%</span>
+                                    <span>Normal: <strong data-field="normal">0</strong>%</span>
+                                    <span>Not Eye: <strong data-field="noteye">0</strong>%</span>
+                                </div>
                             </div>
-                        </div>
-                        <div class="model-card" id="card-exp3">
-                            <div class="label">Model 3 (Exp 3)</div>
-                            <div class="val" id="val-exp3-diag" style="font-weight: 800; font-size: 1.5rem; margin: 1rem 0;">-</div>
-                            <div style="font-size: 0.9rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 5px;">
-                                <span>Cataract: <strong id="val-exp3-c" style="color: var(--text-main)">0</strong>%</span>
-                                <span>Normal: <strong id="val-exp3-n" style="color: var(--text-main)">0</strong>%</span>
-                                <span>Not Eye: <strong id="val-exp3-noteye" style="color: var(--text-main)">0</strong>%</span>
+                            <div class="model-card" data-model="2">
+                                <div class="label">Model 2 (Exp 2)</div>
+                                <div class="val" data-field="diag">-</div>
+                                <div class="model-card-metrics">
+                                    <span>Cataract: <strong data-field="cataract">0</strong>%</span>
+                                    <span>Normal: <strong data-field="normal">0</strong>%</span>
+                                    <span>Not Eye: <strong data-field="noteye">0</strong>%</span>
+                                </div>
+                            </div>
+                            <div class="model-card" data-model="3">
+                                <div class="label">Model 3 (Exp 3)</div>
+                                <div class="val" data-field="diag">-</div>
+                                <div class="model-card-metrics">
+                                    <span>Cataract: <strong data-field="cataract">0</strong>%</span>
+                                    <span>Normal: <strong data-field="normal">0</strong>%</span>
+                                    <span>Not Eye: <strong data-field="noteye">0</strong>%</span>
+                                </div>
                             </div>
                         </div>
                     </div>

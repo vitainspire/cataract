@@ -3,10 +3,8 @@
 // to the backend's HTTPS URL, e.g. "https://api.yourdomain.com".
 const API_BASE = "https://16-170-66-162.sslip.io";
 
-const dropZone = document.getElementById('drop-zone');
-const fileInput = document.getElementById('file-input');
-const imagePreview = document.getElementById('image-preview');
-const dropZoneContent = document.querySelector('.drop-zone-content');
+const dropZones = document.querySelectorAll('.drop-zone');
+const analyzeBtn = document.getElementById('analyze-btn');
 
 const resultsSection = document.getElementById('results-section');
 const loadingSpinner = document.getElementById('loading-spinner');
@@ -48,11 +46,78 @@ async function refreshAccuracy() {
 
 refreshAccuracy();
 
-// Diagnosis Elements
-// (Removed old ensemble elements)
+// --- Per-eye upload state ---
+const eyeFiles = { left: null, right: null };
+
+function updateAnalyzeButton() {
+    analyzeBtn.disabled = !(eyeFiles.left && eyeFiles.right);
+}
+
+dropZones.forEach(zone => {
+    const eye = zone.dataset.eye;
+    const fileInput = zone.querySelector('.file-input');
+    const preview = zone.querySelector('.image-preview');
+    const content = zone.querySelector('.drop-zone-content');
+    const browseBtn = zone.querySelector('.btn-browse');
+    const cameraBtnEl = zone.querySelector('.btn-camera');
+
+    browseBtn.addEventListener('click', () => fileInput.click());
+    cameraBtnEl.addEventListener('click', () => openCamera(eye));
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        zone.addEventListener(eventName, preventDefaults, false);
+    });
+    ['dragenter', 'dragover'].forEach(eventName => {
+        zone.addEventListener(eventName, () => zone.classList.add('dragover'), false);
+    });
+    ['dragleave', 'drop'].forEach(eventName => {
+        zone.addEventListener(eventName, () => zone.classList.remove('dragover'), false);
+    });
+    zone.addEventListener('drop', (e) => {
+        const files = e.dataTransfer.files;
+        if (files.length > 0) setEyeFile(eye, files[0]);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) setEyeFile(eye, e.target.files[0]);
+    });
+});
+
+function setEyeFile(eye, file) {
+    if (!file.type.startsWith('image/')) {
+        showError("Please upload a valid image file.");
+        return;
+    }
+
+    eyeFiles[eye] = file;
+
+    const zone = document.querySelector(`.drop-zone[data-eye="${eye}"]`);
+    const preview = zone.querySelector('.image-preview');
+    const content = zone.querySelector('.drop-zone-content');
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        preview.src = e.target.result;
+        preview.classList.remove('hidden');
+        content.classList.add('hidden');
+    };
+    reader.readAsDataURL(file);
+
+    updateAnalyzeButton();
+}
+
+analyzeBtn.addEventListener('click', () => {
+    if (eyeFiles.left && eyeFiles.right) {
+        processImages(eyeFiles.left, eyeFiles.right);
+    }
+});
+
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
 
 // --- Camera Capture Handlers ---
-const cameraBtn = document.getElementById('camera-btn');
 const cameraModal = document.getElementById('camera-modal');
 const cameraVideo = document.getElementById('camera-video');
 const cameraCanvas = document.getElementById('camera-canvas');
@@ -60,8 +125,8 @@ const captureBtn = document.getElementById('capture-btn');
 const closeCameraBtn = document.getElementById('close-camera-btn');
 
 let cameraStream = null;
+let activeCameraEye = null;
 
-cameraBtn.addEventListener('click', openCamera);
 closeCameraBtn.addEventListener('click', closeCamera);
 captureBtn.addEventListener('click', capturePhoto);
 cameraModal.addEventListener('click', (e) => {
@@ -71,11 +136,13 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !cameraModal.classList.contains('hidden')) closeCamera();
 });
 
-async function openCamera() {
+async function openCamera(eye) {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         showError("Camera access is not supported in this browser.");
         return;
     }
+
+    activeCameraEye = eye;
 
     try {
         cameraStream = await navigator.mediaDevices.getUserMedia({
@@ -123,79 +190,46 @@ function capturePhoto() {
     cameraCanvas.height = height;
     cameraCanvas.getContext('2d').drawImage(cameraVideo, 0, 0, width, height);
 
+    const eye = activeCameraEye;
     cameraCanvas.toBlob((blob) => {
         if (!blob) {
             showError("Failed to capture photo.");
             return;
         }
-        const file = new File([blob], `camera-capture-${Date.now()}.jpg`, { type: 'image/jpeg' });
+        const file = new File([blob], `camera-capture-${eye}-${Date.now()}.jpg`, { type: 'image/jpeg' });
         closeCamera();
-        handleFile(file);
+        setEyeFile(eye, file);
     }, 'image/jpeg', 0.95);
 }
 
-// --- Drag and Drop Handlers ---
-['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-    dropZone.addEventListener(eventName, preventDefaults, false);
-});
+// --- Analysis ---
+function updateModelCard(eye, modelNum, result) {
+    const card = document.querySelector(`.eye-results[data-eye="${eye}"] .model-card[data-model="${modelNum}"]`);
+    if (!card) return;
 
-function preventDefaults(e) {
-    e.preventDefault();
-    e.stopPropagation();
+    const diagEl = card.querySelector('[data-field="diag"]');
+    diagEl.textContent = result.Diagnosis;
+    if (result.Diagnosis === 'Cataract') diagEl.style.color = 'var(--color-cataract)';
+    else if (result.Diagnosis === 'Normal') diagEl.style.color = 'var(--color-normal)';
+    else diagEl.style.color = 'var(--color-noteye)';
+
+    card.querySelector('[data-field="cataract"]').textContent = result.Cataract;
+    card.querySelector('[data-field="normal"]').textContent = result.Normal;
+    card.querySelector('[data-field="noteye"]').textContent = result['Not Eye'];
 }
 
-['dragenter', 'dragover'].forEach(eventName => {
-    dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
-});
-
-['dragleave', 'drop'].forEach(eventName => {
-    dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
-});
-
-dropZone.addEventListener('drop', handleDrop, false);
-fileInput.addEventListener('change', handleFileSelect, false);
-
-function handleDrop(e) {
-    const dt = e.dataTransfer;
-    const files = dt.files;
-    if (files.length > 0) handleFile(files[0]);
-}
-
-function handleFileSelect(e) {
-    if (e.target.files.length > 0) handleFile(e.target.files[0]);
-}
-
-function handleFile(file) {
-    if (!file.type.startsWith('image/')) {
-        showError("Please upload a valid image file.");
-        return;
-    }
-
-    // Show Image Preview
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        imagePreview.src = e.target.result;
-        imagePreview.classList.remove('hidden');
-        dropZoneContent.classList.add('hidden');
-    }
-    reader.readAsDataURL(file);
-
-    // Process with AI
-    processImage(file);
-}
-
-async function processImage(file) {
+async function processImages(leftFile, rightFile) {
     // Reset UI
     resultsSection.classList.remove('hidden');
     diagnosisContent.classList.add('hidden');
     errorMessage.classList.add('hidden');
     loadingSpinner.classList.remove('hidden');
-
     shareLinkSection.classList.add('hidden');
     copyStatus.classList.add('hidden');
 
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('left_file', leftFile);
+    formData.append('right_file', rightFile);
 
     try {
         const response = await fetch(`${API_BASE}/predict`, {
@@ -203,68 +237,32 @@ async function processImage(file) {
             body: formData
         });
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder('utf-8');
-        
-        // Show the results section but clear previous data
-        loadingSpinner.classList.add('hidden');
-        diagnosisContent.classList.remove('hidden');
-        [1, 2, 3].forEach(m => {
-            document.getElementById(`val-exp${m}-diag`).textContent = "Thinking...";
-            document.getElementById(`val-exp${m}-diag`).style.color = "var(--text-main)";
-            document.getElementById(`val-exp${m}-c`).textContent = "0";
-            document.getElementById(`val-exp${m}-n`).textContent = "0";
-            document.getElementById(`val-exp${m}-noteye`).textContent = "0";
-        });
+        const data = await response.json();
 
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split('\n');
-            
-            for (let line of lines) {
-                if (!line.trim()) continue;
-                const data = JSON.parse(line);
-                
-                if (data.error) {
-                    showError(data.error);
-                    return;
-                }
-
-                if (data.done) {
-                    if (data.share_token) {
-                        const base = API_BASE || window.location.origin;
-                        shareLinkInput.value = `${base}/review/${data.share_token}`;
-                        shareLinkSection.classList.remove('hidden');
-                    }
-                    continue;
-                }
-
-                if (data.model) {
-                    const exp = `exp${data.model}`;
-                    const diagVal = document.getElementById(`val-${exp}-diag`);
-                    diagVal.textContent = data.result.Diagnosis;
-                    
-                    if (data.result.Diagnosis === 'Cataract') diagVal.style.color = 'var(--color-cataract)';
-                    else if (data.result.Diagnosis === 'Normal') diagVal.style.color = 'var(--color-normal)';
-                    else diagVal.style.color = 'var(--color-noteye)';
-
-                    document.getElementById(`val-${exp}-c`).textContent = data.result.Cataract;
-                    document.getElementById(`val-${exp}-n`).textContent = data.result.Normal;
-                    document.getElementById(`val-${exp}-noteye`).textContent = data.result['Not Eye'] || data.result.NotEye || 0;
-                }
-            }
+        if (!response.ok || data.error) {
+            showError(data.error || "Failed to analyze the images.");
+            return;
         }
 
+        loadingSpinner.classList.add('hidden');
+        diagnosisContent.classList.remove('hidden');
+
+        ['left', 'right'].forEach(eye => {
+            data[eye].models.forEach(m => updateModelCard(eye, m.model, m.result));
+        });
+
+        if (data.share_token) {
+            const base = API_BASE || window.location.origin;
+            shareLinkInput.value = `${base}/review/${data.share_token}`;
+            shareLinkSection.classList.remove('hidden');
+        }
+
+        refreshAccuracy();
     } catch (err) {
         showError("Failed to connect to the AI engine.");
         console.error(err);
     }
 }
-
-// (displayResults function is removed since it's handled in the stream loop)
 
 function showError(msg) {
     loadingSpinner.classList.add('hidden');
