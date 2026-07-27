@@ -43,6 +43,10 @@ def require_env(name):
     return value
 
 
+# Public URL of the deployed frontend, used to build the full doctor-review
+# link stored in the database (e.g. "https://cataract-eight.vercel.app").
+PUBLIC_APP_URL = os.getenv("PUBLIC_APP_URL", "https://cataract-eight.vercel.app").rstrip("/")
+
 # ---------------------------------------------------------
 # FEEDBACK DATABASE (Supabase Postgres, via the connection pooler)
 # ---------------------------------------------------------
@@ -138,6 +142,16 @@ def init_db():
         "CREATE UNIQUE INDEX IF NOT EXISTS predictions_share_token_eye_idx "
         "ON predictions (share_token, eye_side)"
     )
+
+    # share_url: the full doctor-review link (not just the bare token), stored
+    # directly so it's readable at a glance in the Supabase table editor.
+    cur.execute("ALTER TABLE predictions ADD COLUMN IF NOT EXISTS share_url TEXT")
+    cur.execute("SELECT id, share_token FROM predictions WHERE share_url IS NULL AND share_token IS NOT NULL")
+    for row_id, share_token in cur.fetchall():
+        cur.execute(
+            "UPDATE predictions SET share_url = %s WHERE id = %s",
+            (f"{PUBLIC_APP_URL}/review/{share_token}", row_id)
+        )
 
     conn.commit()
     cur.close()
@@ -326,6 +340,7 @@ async def predict_cataract(left_file: UploadFile = File(...), right_file: Upload
         )
 
         share_token = uuid.uuid4().hex
+        share_url = f"{PUBLIC_APP_URL}/review/{share_token}"
         created_at = datetime.now(timezone.utc)
 
         conn = get_db()
@@ -335,15 +350,15 @@ async def predict_cataract(left_file: UploadFile = File(...), right_file: Upload
             m_results = result["m_results"]
             cur.execute(
                 """INSERT INTO predictions (
-                    created_at, image_path, share_token, eye_side,
+                    created_at, image_path, share_token, share_url, eye_side,
                     model1_diag, model1_cataract, model1_normal, model1_noteye,
                     model2_diag, model2_cataract, model2_normal, model2_noteye,
                     model3_diag, model3_cataract, model3_normal, model3_noteye,
                     ensemble_diag
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id""",
                 (
-                    created_at, result["object_path"], share_token, eye_side,
+                    created_at, result["object_path"], share_token, share_url, eye_side,
                     m_results[0]["Diagnosis"], m_results[0]["Cataract"], m_results[0]["Normal"], m_results[0]["Not Eye"],
                     m_results[1]["Diagnosis"], m_results[1]["Cataract"], m_results[1]["Normal"], m_results[1]["Not Eye"],
                     m_results[2]["Diagnosis"], m_results[2]["Cataract"], m_results[2]["Normal"], m_results[2]["Not Eye"],
@@ -421,7 +436,7 @@ async def gallery():
     conn = get_db()
     cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     cur.execute(
-        "SELECT id, created_at, eye_side, model1_diag, model2_diag, model3_diag, "
+        "SELECT id, created_at, eye_side, share_url, model1_diag, model2_diag, model3_diag, "
         "ensemble_diag, doctor_label FROM predictions ORDER BY id DESC"
     )
     rows = cur.fetchall()
@@ -445,6 +460,7 @@ async def gallery():
                 <div class="row"><span>Ensemble</span><strong>{r['ensemble_diag']}</strong></div>
                 <div class="row label {label_class}"><span>Doctor</span><strong>{label}</strong></div>
                 <div class="row"><span>Date</span><strong>{date}</strong></div>
+                <div class="row"><span>Link</span><a href="{r['share_url']}" target="_blank">Open</a></div>
             </div>
         </div>
         """)
