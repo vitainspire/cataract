@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/review/:path*",
+      "destination": "https://16-170-66-162.sslip.io/review/:path*"
+    }
+  ]
+}

@@ -264,8 +264,10 @@ async function processImages(leftFile, rightFile) {
         });
 
         if (data.share_token) {
-            const base = API_BASE || window.location.origin;
-            shareLinkInput.value = `${base}/review/${data.share_token}`;
+            // Use this site's own domain, not the backend's — Vercel transparently
+            // proxies /review/* to the backend (see vercel.json), so the link a
+            // doctor gets shows the Vercel domain instead of the raw backend URL.
+            shareLinkInput.value = `${window.location.origin}/review/${data.share_token}`;
             shareLinkSection.classList.remove('hidden');
         }
 
