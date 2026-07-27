@@ -500,8 +500,6 @@ def render_eye_panel(safe_token, side, row):
     <div class="eye-panel">
         <h2>{side.capitalize()} Eye</h2>
         <img src="/review/{safe_token}/image/{side}" alt="{side} eye image">
-        <div class="row"><span>Model 1</span><strong>{row['model1_diag']} ({row['model1_cataract']}% cataract)</strong></div>
-        <div class="row"><span>Model 2</span><strong>{row['model2_diag']} ({row['model2_cataract']}% cataract)</strong></div>
         <div class="row"><span>Model 3</span><strong>{row['model3_diag']} ({row['model3_cataract']}% cataract)</strong></div>
         {feedback_html}
     </div>
