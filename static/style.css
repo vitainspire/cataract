@@ -19,10 +19,16 @@
     box-sizing: border-box;
 }
 
+html {
+    width: 100%;
+    overflow-x: hidden;
+}
+
 body {
     font-family: 'Outfit', sans-serif;
     background-color: var(--bg-dark);
     color: var(--text-main);
+    width: 100%;
     min-height: 100vh;
     display: flex;
     justify-content: center;
