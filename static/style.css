@@ -30,9 +30,6 @@ body {
     color: var(--text-main);
     width: 100%;
     min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
     overflow-x: hidden;
     position: relative;
 }
@@ -72,6 +69,7 @@ body {
 .container {
     width: 100%;
     max-width: 900px;
+    margin: 0 auto;
     padding: 2rem;
     z-index: 10;
 }
