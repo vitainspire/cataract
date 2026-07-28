@@ -22,6 +22,7 @@
 html {
     width: 100%;
     overflow-x: hidden;
+    overscroll-behavior-y: contain;
 }
 
 body {
@@ -31,6 +32,8 @@ body {
     width: 100%;
     min-height: 100vh;
     overflow-x: hidden;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
     position: relative;
 }
 
@@ -437,12 +440,15 @@ header p {
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-    animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: fadeIn 0.4s ease forwards;
 }
 
-@keyframes slideUp {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+/* Opacity-only (no transform) so the element isn't left permanently promoted
+   to its own GPU-composited layer after the animation ends — that promotion
+   can cause a scroll hitch right as the viewport crosses this panel's edge. */
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .glass-panel h2 {
