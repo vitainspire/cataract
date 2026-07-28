@@ -638,6 +638,28 @@ header p {
     }
 }
 
+/* Mobile performance: backdrop-filter blur on many overlapping panels, plus a
+   continuously-animated heavily-blurred background, can make mobile GPUs fall
+   behind during scroll — perceived as scrolling randomly "freezing". Cut both
+   way down on small screens, where it matters most and is least visible. */
+@media (max-width: 768px) {
+    .accuracy-item,
+    .guide-card,
+    .drop-zone,
+    .glass-panel,
+    .camera-panel,
+    .camera-modal {
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+    }
+
+    .bg-shape {
+        animation: none;
+        filter: blur(60px);
+        opacity: 0.35;
+    }
+}
+
 /* Utility */
 .hidden {
     display: none !important;
