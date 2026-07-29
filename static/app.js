@@ -88,7 +88,10 @@ function setEyeFile(eye, file) {
         showError("Please upload a valid image file.");
         return;
     }
+    openCropModal(eye, file);
+}
 
+function finalizeEyeFile(eye, file) {
     eyeFiles[eye] = file;
 
     const zone = document.querySelector(`.drop-zone[data-eye="${eye}"]`);
@@ -201,6 +204,166 @@ function capturePhoto() {
         setEyeFile(eye, file);
     }, 'image/jpeg', 0.95);
 }
+
+// --- Crop Modal ---
+const cropModal = document.getElementById('crop-modal');
+const cropTitle = document.getElementById('crop-title');
+const cropStage = document.getElementById('crop-stage');
+const cropImage = document.getElementById('crop-image');
+const cropBox = document.getElementById('crop-box');
+const cropCanvas = document.getElementById('crop-canvas');
+const cropConfirmBtn = document.getElementById('crop-confirm-btn');
+const cropSkipBtn = document.getElementById('crop-skip-btn');
+
+const CROP_MIN_SIZE = 40;
+
+let cropEye = null;
+let cropOriginalFile = null;
+let cropBoxRect = { left: 0, top: 0, size: 0 };
+let cropDrag = null; // { mode: 'move'|'resize', handle, startX, startY, startRect }
+
+function openCropModal(eye, file) {
+    cropEye = eye;
+    cropOriginalFile = file;
+    cropTitle.textContent = `Adjust ${eye === 'left' ? 'Left' : 'Right'} Eye Crop`;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        cropImage.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+
+    cropModal.classList.remove('hidden');
+}
+
+function closeCropModal() {
+    cropModal.classList.add('hidden');
+    cropImage.src = '';
+    cropEye = null;
+    cropOriginalFile = null;
+}
+
+cropImage.addEventListener('load', () => {
+    const stageWidth = cropStage.clientWidth;
+    const stageHeight = cropStage.clientHeight;
+    const size = Math.max(CROP_MIN_SIZE, Math.min(stageWidth, stageHeight) * 0.7);
+    cropBoxRect = {
+        left: (stageWidth - size) / 2,
+        top: (stageHeight - size) / 2,
+        size
+    };
+    renderCropBox();
+});
+
+function renderCropBox() {
+    cropBox.style.left = `${cropBoxRect.left}px`;
+    cropBox.style.top = `${cropBoxRect.top}px`;
+    cropBox.style.width = `${cropBoxRect.size}px`;
+    cropBox.style.height = `${cropBoxRect.size}px`;
+}
+
+cropBox.addEventListener('pointerdown', (e) => {
+    const handle = e.target.dataset.handle;
+    cropDrag = {
+        mode: handle ? 'resize' : 'move',
+        handle,
+        startX: e.clientX,
+        startY: e.clientY,
+        startRect: { ...cropBoxRect }
+    };
+    e.preventDefault();
+});
+
+document.addEventListener('pointermove', (e) => {
+    if (!cropDrag) return;
+
+    const stageWidth = cropStage.clientWidth;
+    const stageHeight = cropStage.clientHeight;
+    const dx = e.clientX - cropDrag.startX;
+    const dy = e.clientY - cropDrag.startY;
+    const start = cropDrag.startRect;
+
+    if (cropDrag.mode === 'move') {
+        cropBoxRect.left = Math.max(0, Math.min(stageWidth - start.size, start.left + dx));
+        cropBoxRect.top = Math.max(0, Math.min(stageHeight - start.size, start.top + dy));
+    } else {
+        const px = e.clientX - cropStage.getBoundingClientRect().left;
+        const py = e.clientY - cropStage.getBoundingClientRect().top;
+        let anchorX, anchorY, newLeft, newTop, size;
+
+        if (cropDrag.handle === 'br') {
+            anchorX = start.left;
+            anchorY = start.top;
+            size = Math.max(CROP_MIN_SIZE, Math.max(px - anchorX, py - anchorY));
+            size = Math.min(size, stageWidth - anchorX, stageHeight - anchorY);
+            newLeft = anchorX;
+            newTop = anchorY;
+        } else if (cropDrag.handle === 'tl') {
+            anchorX = start.left + start.size;
+            anchorY = start.top + start.size;
+            size = Math.max(CROP_MIN_SIZE, Math.max(anchorX - px, anchorY - py));
+            size = Math.min(size, anchorX, anchorY);
+            newLeft = anchorX - size;
+            newTop = anchorY - size;
+        } else if (cropDrag.handle === 'tr') {
+            anchorX = start.left;
+            anchorY = start.top + start.size;
+            size = Math.max(CROP_MIN_SIZE, Math.max(px - anchorX, anchorY - py));
+            size = Math.min(size, stageWidth - anchorX, anchorY);
+            newLeft = anchorX;
+            newTop = anchorY - size;
+        } else if (cropDrag.handle === 'bl') {
+            anchorX = start.left + start.size;
+            anchorY = start.top;
+            size = Math.max(CROP_MIN_SIZE, Math.max(anchorX - px, py - anchorY));
+            size = Math.min(size, anchorX, stageHeight - anchorY);
+            newLeft = anchorX - size;
+            newTop = anchorY;
+        } else {
+            return;
+        }
+
+        cropBoxRect = { left: newLeft, top: newTop, size };
+    }
+
+    renderCropBox();
+});
+
+document.addEventListener('pointerup', () => {
+    cropDrag = null;
+});
+
+cropConfirmBtn.addEventListener('click', () => {
+    const stageWidth = cropStage.clientWidth;
+    const scale = cropImage.naturalWidth / stageWidth;
+
+    const sx = cropBoxRect.left * scale;
+    const sy = cropBoxRect.top * scale;
+    const sSize = cropBoxRect.size * scale;
+
+    cropCanvas.width = Math.round(sSize);
+    cropCanvas.height = Math.round(sSize);
+    const ctx = cropCanvas.getContext('2d');
+    ctx.drawImage(cropImage, sx, sy, sSize, sSize, 0, 0, sSize, sSize);
+
+    const eye = cropEye;
+    cropCanvas.toBlob((blob) => {
+        if (!blob) {
+            showError("Failed to crop the image.");
+            return;
+        }
+        const file = new File([blob], `${eye}-cropped-${Date.now()}.jpg`, { type: 'image/jpeg' });
+        closeCropModal();
+        finalizeEyeFile(eye, file);
+    }, 'image/jpeg', 0.95);
+});
+
+cropSkipBtn.addEventListener('click', () => {
+    const eye = cropEye;
+    const file = cropOriginalFile;
+    closeCropModal();
+    finalizeEyeFile(eye, file);
+});
 
 // --- Analysis ---
 function updateModelCard(eye, modelNum, result) {

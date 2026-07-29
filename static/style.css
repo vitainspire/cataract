@@ -416,6 +416,88 @@ header p {
     flex-wrap: wrap;
 }
 
+/* Crop Modal */
+.crop-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 1.5rem;
+}
+
+.crop-panel {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 24px;
+    padding: 1.5rem;
+    width: 100%;
+    max-width: 520px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+}
+
+.crop-panel h3 {
+    text-align: center;
+    font-size: 1.2rem;
+    margin-bottom: 0.5rem;
+}
+
+.crop-hint {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-bottom: 1rem;
+}
+
+.crop-stage {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 12px;
+    touch-action: none;
+    background: #000;
+}
+
+#crop-image {
+    width: 100%;
+    display: block;
+    user-select: none;
+    pointer-events: none;
+}
+
+.crop-box {
+    position: absolute;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
+    cursor: move;
+    touch-action: none;
+}
+
+.crop-handle {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    background: #fff;
+    border: 2px solid var(--primary);
+    border-radius: 50%;
+    touch-action: none;
+}
+
+.crop-handle[data-handle="tl"] { top: -11px; left: -11px; cursor: nwse-resize; }
+.crop-handle[data-handle="tr"] { top: -11px; right: -11px; cursor: nesw-resize; }
+.crop-handle[data-handle="bl"] { bottom: -11px; left: -11px; cursor: nesw-resize; }
+.crop-handle[data-handle="br"] { bottom: -11px; right: -11px; cursor: nwse-resize; }
+
+.crop-controls {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    margin-top: 1.25rem;
+    flex-wrap: wrap;
+}
+
 .image-preview {
     position: absolute;
     top: 0;

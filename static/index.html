@@ -114,6 +114,27 @@
             </div>
         </div>
 
+        <div id="crop-modal" class="crop-modal hidden">
+            <div class="crop-panel">
+                <h3 id="crop-title">Adjust crop to the eye</h3>
+                <p class="crop-hint">Drag to move, drag a corner to resize. Keep the eye filling the box.</p>
+                <div class="crop-stage" id="crop-stage">
+                    <img id="crop-image" alt="Crop preview" draggable="false">
+                    <div id="crop-box" class="crop-box">
+                        <div class="crop-handle" data-handle="tl"></div>
+                        <div class="crop-handle" data-handle="tr"></div>
+                        <div class="crop-handle" data-handle="bl"></div>
+                        <div class="crop-handle" data-handle="br"></div>
+                    </div>
+                </div>
+                <canvas id="crop-canvas" class="hidden"></canvas>
+                <div class="crop-controls">
+                    <button id="crop-confirm-btn" class="btn-primary" type="button">Use This Crop</button>
+                    <button id="crop-skip-btn" class="btn-secondary" type="button">Use Full Photo</button>
+                </div>
+            </div>
+        </div>
+
         <section id="results-section" class="results-section hidden">
             <div class="glass-panel">
                 <h2>Analysis Results</h2>
